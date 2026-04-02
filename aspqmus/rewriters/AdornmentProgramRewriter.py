@@ -5,6 +5,7 @@ from clingo.ast import parse_string
 
 from aspqmus.language import QuantifiedProgram, ProgramQuantifier
 
+
 class AdornmentType(StrEnum):
     MUS = "mus"
     MCS = "mcs"
@@ -87,7 +88,8 @@ class AdornmentProgramRewriter(clingo.ast.Transformer):
             self.programs = [self.programs[0]] + [force_u_program] + self.programs[1:]
 
         #construct global weak program
-        self.global_weak = QuantifiedProgram(f":~ {self.objective_o_predicate_name if self.adornment_type == AdornmentType.MCS else self.objective_u_predicate_name}(X,Y). [-1@1,X,Y]", ProgramQuantifier.GLOBAL_WEAK)
+        weight = "-1" if self.adornment_type == AdornmentType.MCS else "1"       
+        self.global_weak = QuantifiedProgram(f":~ {self.objective_o_predicate_name if self.adornment_type == AdornmentType.MCS else self.objective_u_predicate_name}(X,Y). [{weight}@1,X,Y]", ProgramQuantifier.GLOBAL_WEAK)
 
     def visit_Comment(self, value):
         value_str = str(value)
@@ -200,7 +202,10 @@ class AdornmentProgramRewriter(clingo.ast.Transformer):
             False
         )
         self.objective_atoms_o.append(str(obj_atom_o))
-        self.objective_atoms_to_rules[str(obj_atom_o)] = str(node)
+        if self.adornment_type == AdornmentType.MCS:
+            self.objective_atoms_to_rules[str(obj_atom_o)] = str(node)
+        else:
+            self.objective_atoms_to_rules[str(obj_atom_u)] = str(node)
         self.objective_atoms_u.append(str(obj_atom_u))
         return obj_atom_o
     
