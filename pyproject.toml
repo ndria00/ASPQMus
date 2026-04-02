@@ -1,0 +1,16 @@
+[project]
+name = "aspq-mus"
+version = "0.0.1"
+description = "A tool for computing ASP(Q) MUS and MCS based on PyQASP"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "clingo>=5.7.1",
+]
+
+[project.scripts]
+aspqmus = "aspqmus.app:entrypoint"
+
+[tool.setuptools.packages.find]
+where = ["."]
+

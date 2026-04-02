@@ -1,0 +1,5 @@
+build/
+aspq_mus.egg-info
+myenv/
+examples/
+*.out
