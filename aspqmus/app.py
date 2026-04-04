@@ -47,6 +47,7 @@ def entrypoint():
         weak.close()
         with open(program.name, mode="r") as program_pyqasp ,open(weak.name, mode="r") as weak_pyqasp:
             command = [pyqasp_executable, "-g", "gringo", "-s" , "quabs", "--no-wf", "-w", weak_pyqasp.name, program_pyqasp.name]
+            logger.print("Executing PyQASP")
             proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             stdout, stderr = proc.communicate()
             if proc.returncode not in [10,20,30]:
@@ -65,15 +66,21 @@ def entrypoint():
                 try:
                     logger.print(f"Subprogram involved in {ad_type}:")
                     optimum_as_json = json.loads(optimum)
+                    at_least_one = False
                     for literal in optimum_as_json["literals"]:
                         lit = str(literal)
                         if ad_type == AdornmentType.MCS:
                             #MCS is the complement of true objective atoms
                             if not re.match(f"not {Settings.OBJECTIVE_ATOM_O_NAME}\\(\d+,\d+\\)", lit) is None: 
                                 print(adornment_rewriter.objective_atoms_to_rules[lit.replace("not ", "")])
+                                at_least_one = True
                         else:
                             if not re.match(f"{Settings.OBJECTIVE_ATOM_U_NAME}\\(\d+,\d+\\)", lit) is None: 
                                 print(adornment_rewriter.objective_atoms_to_rules[lit])
+                                at_least_one = True
+                    if not at_least_one:
+                        print("**********WARNING**********")
+                        print("The input program was coherent")
                 except:
                     print("Error while parsing pyqasp output")
                     exit(1)
