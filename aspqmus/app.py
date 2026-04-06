@@ -16,8 +16,11 @@ def entrypoint():
     parser.add_argument('--adornment', choices=list(AdornmentOption), default=AdornmentOption.FACTS_ONLY, help='choose adornment option')
     parser.add_argument('--pyqasp', help="path to pyqasp executable - if not specified it assumes that the solver is callable as pyqasp\n", required=False)
     parser.add_argument('--debug', help="enable debug prints\n", required=False, action="store_true")
-
+    parser.add_argument('--tmpdir', help="directory for temporary files", required=False, default=None)
     args = parser.parse_args()
+
+    if args.tmpdir:
+        tempfile.tempdir = args.tmpdir
 
     encoding_path = args.problem
     try:
@@ -39,64 +42,61 @@ def entrypoint():
         pyqasp_executable = args.pyqasp
     else:
         pyqasp_executable = "pyqasp"
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", prefix="aspqmus_", suffix=".aspq", delete=False) as program, tempfile.NamedTemporaryFile(mode="w", prefix="aspqmus_", suffix=".asp", delete=False) as weak:
+            program_name = program.name
+            weak_name = weak.name
+            for prg in adornment_rewriter.programs:
+                program.write(str(prg))
+            weak.write(adornment_rewriter.global_weak.rules)
+            program.close()
+            weak.close()
+            with open(program.name, mode="r") as program_pyqasp ,open(weak.name, mode="r") as weak_pyqasp:
+                command = [pyqasp_executable, "-g", "gringo", "-s" , "quabs", "--no-wf", "-w", weak_pyqasp.name, program_pyqasp.name]
+                logger.print("Executing PyQASP")
+                proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                stdout, stderr = proc.communicate()
+                if proc.returncode not in [10,20,30]:
+                    if stderr.decode() != "":
+                        print(stderr.decode())
+                    program_pyqasp.close()
+                    weak_pyqasp.close()
+                    exit(proc.returncode)
+                else:
+                    out = stdout.decode()
+                    logger.print(out)
+                    logger.print(f"{ad_type} found")
+                    
+                    #take last quantified answer set
+                    optimum = "{" +re.findall("\"literals\": \\[.*?\\]", out)[-1] + "}"
+                    try:
+                        logger.print(f"Subprogram involved in {ad_type}:")
+                        optimum_as_json = json.loads(optimum)
+                        at_least_one = False
+                        print("MCS: " if ad_type == AdornmentType.MCS else "MUS: ", end="")
+                        rules = []
+                        for literal in optimum_as_json["literals"]:
+                            lit = str(literal)
+                            if ad_type == AdornmentType.MCS:
+                                #MCS is the complement of true objective atoms
+                                if not re.match(f"not {Settings.OBJECTIVE_ATOM_O_NAME}\\(\d+,\d+\\)", lit) is None:
+                                    obj_atom = lit.replace("not ", "")
+                                    rules.append(f"{adornment_rewriter.objective_atoms_to_rules[obj_atom]}")
+                                    at_least_one = True
+                            else:
+                                if not re.match(f"{Settings.OBJECTIVE_ATOM_U_NAME}\\(\d+,\d+\\)", lit) is None: 
+                                    rules.append(f"{adornment_rewriter.objective_atoms_to_rules[lit]}")
+                                    at_least_one = True
+                        print(rules)
+                        if not at_least_one:
+                            logger.print("**********WARNING**********")
+                            logger.print("The input program was coherent")
+                    except:
+                        logger.print("Error while parsing pyqasp output")
 
-    with tempfile.NamedTemporaryFile(mode="w", prefix="apqmus_", suffix=".aspq", delete=False) as program, tempfile.NamedTemporaryFile(mode="w", prefix="apqmus_", suffix=".asp", delete=False) as weak:
-        for prg in adornment_rewriter.programs:
-            program.write(str(prg))
-        weak.write(adornment_rewriter.global_weak.rules)
-        program.close()
-        weak.close()
-        with open(program.name, mode="r") as program_pyqasp ,open(weak.name, mode="r") as weak_pyqasp:
-            command = [pyqasp_executable, "-g", "gringo", "-s" , "quabs", "--no-wf", "-w", weak_pyqasp.name, program_pyqasp.name]
-            logger.print("Executing PyQASP")
-            proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            stdout, stderr = proc.communicate()
-            if proc.returncode not in [10,20,30]:
-                if stderr.decode() != "":
-                    print(stderr.decode())
-                program_pyqasp.close()
-                weak_pyqasp.close()
-                os.unlink(program.name)
-                os.unlink(weak.name)
-                exit(proc.returncode)
-            else:
-                out = stdout.decode()
-                logger.print(out)
-                logger.print(f"{ad_type} found")
-                
-                #take last quantified answer set
-                optimum = "{" +re.findall("\"literals\": \\[.*?\\]", out)[-1] + "}"
-                try:
-                    logger.print(f"Subprogram involved in {ad_type}:")
-                    optimum_as_json = json.loads(optimum)
-                    at_least_one = False
-                    print("MCS: " if ad_type == AdornmentType.MCS else "MUS: ", end="")
-                    rules = []
-                    for literal in optimum_as_json["literals"]:
-                        lit = str(literal)
-                        if ad_type == AdornmentType.MCS:
-                            #MCS is the complement of true objective atoms
-                            if not re.match(f"not {Settings.OBJECTIVE_ATOM_O_NAME}\\(\d+,\d+\\)", lit) is None:
-                                obj_atom = lit.replace("not ", "")
-                                rules.append(f"{adornment_rewriter.objective_atoms_to_rules[obj_atom]}")
-                                at_least_one = True
-                        else:
-                            if not re.match(f"{Settings.OBJECTIVE_ATOM_U_NAME}\\(\d+,\d+\\)", lit) is None: 
-                                rules.append(f"{adornment_rewriter.objective_atoms_to_rules[lit]}")
-                                at_least_one = True
-                    print(rules)
-                    if not at_least_one:
-                        logger.print("**********WARNING**********")
-                        logger.print("The input program was coherent")
-                except:
-                    os.unlink(program.name)
-                    os.unlink(weak.name)
-                    logger.print("Error while parsing pyqasp output")
-                    exit(1)
-
-                program_pyqasp.close()
-                weak_pyqasp.close()
-    
-    os.unlink(program.name)
-    os.unlink(weak.name)
-    exit(proc.returncode)
+                    program_pyqasp.close()
+                    weak_pyqasp.close()
+    finally:
+        if program_name: os.unlink(program_name)
+        if weak_name: os.unlink(weak_name)
+        
