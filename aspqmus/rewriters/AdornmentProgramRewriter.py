@@ -36,6 +36,7 @@ class AdornmentProgramRewriter(clingo.ast.Transformer):
     objective_atoms_u : list
     compute_dual : bool
     unsat_predicate_name : str
+    non_adorned_rules : list
 
     def __init__(self, encoding_program, objective_o_predicate_name, objective_u_predicate_name, unsat_predicate_name, adornment_type, adornment_option) -> None:
         super().__init__()
@@ -58,6 +59,7 @@ class AdornmentProgramRewriter(clingo.ast.Transformer):
         self.objective_atoms_u = []
         self.compute_dual = adornment_type == AdornmentType.MUS
         self.unsat_predicate_name = unsat_predicate_name
+        self.non_adorned_rules = []
         parse_string(encoding_program, lambda stm: (self(stm)))
         self.closed_program()
 
@@ -133,6 +135,7 @@ class AdornmentProgramRewriter(clingo.ast.Transformer):
         if self.adornment_option == AdornmentOption.FACTS_ONLY:
             if len(node.body) > 0 or node.head.ast_type == clingo.ast.ASTType.Aggregate or node.head.ast_type == clingo.ast.ASTType.Disjunction:
                 rewritten_rule_str = self.asp_rule_to_string(node.head, node.body)
+                self.non_adorned_rules.append(f"\"{rewritten_rule_str}\"")
             else:
                 obj_atom = self.construct_objective_atom(node)
                 rewritten_body = [b for b in node.body] + [obj_atom]
@@ -145,10 +148,12 @@ class AdornmentProgramRewriter(clingo.ast.Transformer):
                 rewritten_rule_str = self.asp_rule_to_string(node.head, rewritten_body)
             else:
                 rewritten_rule_str = self.asp_rule_to_string(node.head, node.body)
+                self.non_adorned_rules.append(f"\"{rewritten_rule_str}\"")
         # adorn rules in all programs and not facts
         elif self.adornment_option == AdornmentOption.RULES_ONLY:
             if len(node.body) == 0 and not node.head.ast_type == clingo.ast.ASTType.Aggregate and not node.head.ast_type == clingo.ast.ASTType.Disjunction:
                 rewritten_rule_str = self.asp_rule_to_string(node.head, node.body)
+                self.non_adorned_rules.append(f"\"{rewritten_rule_str}\"")
             else:
                 obj_atom = self.construct_objective_atom(node)
                 rewritten_body = [b for b in node.body] + [obj_atom]
@@ -167,9 +172,11 @@ class AdornmentProgramRewriter(clingo.ast.Transformer):
     def closed_program(self):
         if self.program_is_open:
             program_quantifier = self.cur_program_quantifier
-            if self.compute_dual and program_quantifier != ProgramQuantifier.CONSTRAINTS:
-                program_quantifier = ProgramQuantifier.EXISTS if self.cur_program_quantifier == ProgramQuantifier.FORALL else ProgramQuantifier.FORALL
-            
+            if self.compute_dual:
+                if program_quantifier != ProgramQuantifier.CONSTRAINTS:
+                    program_quantifier = ProgramQuantifier.EXISTS if self.cur_program_quantifier == ProgramQuantifier.FORALL else ProgramQuantifier.FORALL
+                elif program_quantifier == ProgramQuantifier.CONSTRAINTS:
+                    self.cur_program_rules.append(f":- not {self.unsat_predicate_name}.")
             program_str = "\n".join(self.cur_program_rules)
             program = QuantifiedProgram(program_str, program_quantifier)
             self.programs.append(program)
