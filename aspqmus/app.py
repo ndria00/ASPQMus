@@ -17,6 +17,7 @@ def entrypoint():
     parser.add_argument('--pyqasp', help="path to pyqasp executable - if not specified it assumes that the solver is callable as pyqasp\n", required=False)
     parser.add_argument('--debug', help="enable debug prints\n", required=False, action="store_true")
     parser.add_argument('--tmpdir', help="directory for temporary files", required=False, default=None)
+    parser.add_argument('--print-adorned-rules', help="print rules that are adorned for mus - useful for debug\n", required=False, action="store_true")
     args = parser.parse_args()
 
     if args.tmpdir:
@@ -88,16 +89,20 @@ def entrypoint():
                                 if not re.match(f"{Settings.OBJECTIVE_ATOM_U_NAME}\\(\d+,\d+\\)", lit) is None: 
                                     rules.append(f"\"{adornment_rewriter.objective_atoms_to_rules[lit]}\"")
                                     at_least_one = True
-
+                        adorned_rules_in_mus = rules.copy()  
                         if ad_type == AdornmentType.MUS and at_least_one:
                             for r in adornment_rewriter.non_adorned_rules:
                                 rules.append(r)
 
                         print("[", ", ".join(rules), "]", end="")
-                        print("}", end="")
+                        
                         if not at_least_one:
                             logger.print("**********WARNING**********")
                             logger.print("The input program was coherent")
+                        else:
+                            if ad_type == AdornmentType.MUS and args.print_adorned_rules:
+                                print(", \"ADORNED\": [", ", ".join(adorned_rules_in_mus), "]", end="")
+                        print("}", end="")
                     except:
                         logger.print("Error while parsing pyqasp output")
 

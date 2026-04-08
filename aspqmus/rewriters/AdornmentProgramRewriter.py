@@ -210,9 +210,9 @@ class AdornmentProgramRewriter(clingo.ast.Transformer):
         )
         self.objective_atoms_o.append(str(obj_atom_o))
         if self.adornment_type == AdornmentType.MCS:
-            self.objective_atoms_to_rules[str(obj_atom_o)] = str(node)
+            self.objective_atoms_to_rules[str(obj_atom_o)] = self.asp_rule_to_string(node.head, node.body)
         else:
-            self.objective_atoms_to_rules[str(obj_atom_u)] = str(node)
+            self.objective_atoms_to_rules[str(obj_atom_u)] = self.asp_rule_to_string(node.head, node.body)
         self.objective_atoms_u.append(str(obj_atom_u))
         return obj_atom_o
     
