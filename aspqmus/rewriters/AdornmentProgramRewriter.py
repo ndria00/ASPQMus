@@ -12,6 +12,7 @@ class AdornmentType(StrEnum):
 
 class AdornmentOption(StrEnum):
     CONSTRAINT_PROGRAM_ONLY = "constraint_program"     # adorn only rules from constrant program - no matter if facts or not
+    CONSTRAINTS_ONLY = "constraints"     # adorn only rules from constrant program - no matter if facts or not
     FACTS_ONLY = "facts"                               # adorn all facts in all programs - leave rules not adorned
     RULES_ONLY = "rules"                               # adorn rules in all programs and not facts
     ALL = "all"                                        # adorn everything
@@ -162,6 +163,14 @@ class AdornmentProgramRewriter(clingo.ast.Transformer):
                 obj_atom = self.construct_objective_atom(node)
                 rewritten_body = [b for b in node.body] + [obj_atom]
                 rewritten_rule_str = self.asp_rule_to_string(node.head, rewritten_body)
+        elif self.adornment_option == AdornmentOption.CONSTRAINTS_ONLY:
+            if node.head.atom.ast_type == clingo.ast.ASTType.BooleanConstant:
+                obj_atom = self.construct_objective_atom(node)
+                rewritten_body = [b for b in node.body] + [obj_atom]
+                rewritten_rule_str = self.asp_rule_to_string(node.head, rewritten_body)
+            else:
+                rewritten_rule_str = self.asp_rule_to_string(node.head, node.body)
+                self.non_adorned_rules.append(f"\"{rewritten_rule_str}\"")
         #flip constraints in constraint program when adornig for MUS
         if self.compute_dual and self.cur_program_quantifier == ProgramQuantifier.CONSTRAINTS and node.head.ast_type == clingo.ast.ASTType.Literal and node.head.atom.ast_type == clingo.ast.ASTType.BooleanConstant:
             rewritten_rule_str = f"{self.unsat_predicate_name}{rewritten_rule_str}"

@@ -38,7 +38,6 @@ def entrypoint():
     for program in adornment_rewriter.programs:
         logger.print(program)
     logger.print(adornment_rewriter.global_weak)
-
     if args.pyqasp:
         pyqasp_executable = args.pyqasp
     else:
