@@ -79,10 +79,8 @@ def entrypoint():
                         for literal in optimum_as_json["literals"]:
                             lit = str(literal)
                             if ad_type == AdornmentType.MCS:
-                                #MCS is the complement of true objective atoms
-                                if not re.match(f"not {Settings.OBJECTIVE_ATOM_O_NAME}\\(\d+,\d+\\)", lit) is None:
-                                    obj_atom = lit.replace("not ", "")
-                                    rules.append(f"\"{adornment_rewriter.objective_atoms_to_rules[obj_atom]}\"")
+                                if not re.match(f"{Settings.OBJECTIVE_ATOM_O_NAME}\\(\d+,\d+\\)", lit) is None:
+                                    rules.append(f"\"{adornment_rewriter.objective_atoms_to_rules[lit]}\"")
                                     at_least_one = True
                             else:
                                 if not re.match(f"{Settings.OBJECTIVE_ATOM_U_NAME}\\(\d+,\d+\\)", lit) is None: 

@@ -91,7 +91,7 @@ class AdornmentProgramRewriter(clingo.ast.Transformer):
             self.programs = [self.programs[0]] + [force_u_program] + self.programs[1:]
 
         #construct global weak program
-        weight = "-1" if self.adornment_type == AdornmentType.MCS else "1"       
+        weight = "1"       
         self.global_weak = QuantifiedProgram(f":~ {self.objective_o_predicate_name if self.adornment_type == AdornmentType.MCS else self.objective_u_predicate_name}(X,Y). [{weight}@1,X,Y]", ProgramQuantifier.GLOBAL_WEAK)
 
     def visit_Comment(self, value):
@@ -138,13 +138,13 @@ class AdornmentProgramRewriter(clingo.ast.Transformer):
                 rewritten_rule_str = self.asp_rule_to_string(node.head, node.body)
                 self.non_adorned_rules.append(f"\"{rewritten_rule_str}\"")
             else:
-                obj_atom = self.construct_objective_atom(node)
+                obj_atom = self.construct_objective_atom(node, self.adornment_type == "mcs")
                 rewritten_body = [b for b in node.body] + [obj_atom]
                 rewritten_rule_str = self.asp_rule_to_string(node.head, rewritten_body)
         # adorn all facts in all programs - leave rules not adorned
         elif self.adornment_option == AdornmentOption.CONSTRAINT_PROGRAM_ONLY:
             if self.cur_program_quantifier == ProgramQuantifier.CONSTRAINTS:
-                obj_atom = self.construct_objective_atom(node)
+                obj_atom = self.construct_objective_atom(node, self.adornment_type == "mcs")
                 rewritten_body = [b for b in node.body] + [obj_atom]
                 rewritten_rule_str = self.asp_rule_to_string(node.head, rewritten_body)
             else:
@@ -156,16 +156,16 @@ class AdornmentProgramRewriter(clingo.ast.Transformer):
                 rewritten_rule_str = self.asp_rule_to_string(node.head, node.body)
                 self.non_adorned_rules.append(f"\"{rewritten_rule_str}\"")
             else:
-                obj_atom = self.construct_objective_atom(node)
+                obj_atom = self.construct_objective_atom(node, self.adornment_type == "mcs")
                 rewritten_body = [b for b in node.body] + [obj_atom]
                 rewritten_rule_str = self.asp_rule_to_string(node.head, rewritten_body)
         elif self.adornment_option == AdornmentOption.ALL:
-                obj_atom = self.construct_objective_atom(node)
+                obj_atom = self.construct_objective_atom(node, self.adornment_type == "mcs")
                 rewritten_body = [b for b in node.body] + [obj_atom]
                 rewritten_rule_str = self.asp_rule_to_string(node.head, rewritten_body)
         elif self.adornment_option == AdornmentOption.CONSTRAINTS_ONLY:
             if node.head.atom.ast_type == clingo.ast.ASTType.BooleanConstant:
-                obj_atom = self.construct_objective_atom(node)
+                obj_atom = self.construct_objective_atom(node, self.adornment_type == "mcs")
                 rewritten_body = [b for b in node.body] + [obj_atom]
                 rewritten_rule_str = self.asp_rule_to_string(node.head, rewritten_body)
             else:
@@ -196,7 +196,7 @@ class AdornmentProgramRewriter(clingo.ast.Transformer):
     def visit_Minimize(self, node):
         raise Exception("Unexpected local constraint")
     
-    def construct_objective_atom(self, node):
+    def construct_objective_atom(self, node, negated=False):
         self.current_program_rule_id += 1
         self.overall_rule_id += 1
         obj_atom_o = clingo.ast.Function(
@@ -217,13 +217,17 @@ class AdornmentProgramRewriter(clingo.ast.Transformer):
             ],
             False
         )
+        
+        sign = clingo.ast.Sign.Negation if negated else clingo.ast.Sign.NoSign
+        literal_o = clingo.ast.Literal(node.location, sign, clingo.ast.SymbolicAtom(obj_atom_o))
+
         self.objective_atoms_o.append(str(obj_atom_o))
         if self.adornment_type == AdornmentType.MCS:
             self.objective_atoms_to_rules[str(obj_atom_o)] = self.asp_rule_to_string(node.head, node.body)
         else:
             self.objective_atoms_to_rules[str(obj_atom_u)] = self.asp_rule_to_string(node.head, node.body)
         self.objective_atoms_u.append(str(obj_atom_u))
-        return obj_atom_o
+        return literal_o
     
     def asp_rule_to_string(self, rule_head, rule_body):
         head_str = ""
