@@ -78,14 +78,9 @@ def entrypoint():
                         rules = []
                         for literal in optimum_as_json["literals"]:
                             lit = str(literal)
-                            if ad_type == AdornmentType.MCS:
-                                if not re.match(f"{Settings.OBJECTIVE_ATOM_O_NAME}\\(\d+,\d+\\)", lit) is None:
-                                    rules.append(f"\"{adornment_rewriter.objective_atoms_to_rules[lit]}\"")
-                                    at_least_one = True
-                            else:
-                                if not re.match(f"{Settings.OBJECTIVE_ATOM_U_NAME}\\(\d+,\d+\\)", lit) is None: 
-                                    rules.append(f"\"{adornment_rewriter.objective_atoms_to_rules[lit]}\"")
-                                    at_least_one = True
+                            if not re.match(f"{Settings.OBJECTIVE_ATOM_U_NAME}\\(\d+,\d+\\)", lit) is None:
+                                rules.append(f"\"{adornment_rewriter.objective_atoms_to_rules[lit]}\"")
+                                at_least_one = True
                         adorned_rules_in_mus = rules.copy()  
                         if ad_type == AdornmentType.MUS and at_least_one:
                             for r in adornment_rewriter.non_adorned_rules:
