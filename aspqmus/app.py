@@ -7,6 +7,7 @@ import os
 from pyqasp.pyqaspsolver import PyQASPSolver
 from aspqmus.rewriters.AdornmentProgramRewriter import AdornmentProgramRewriter, AdornmentType, AdornmentOption
 from aspqmus.utils import Settings, Logger
+from aspqmus.remus import enumerate_muses
 
 def entrypoint():
     parser = argparse.ArgumentParser(prog = "aspqmus", description = "TODO\n")
@@ -57,8 +58,14 @@ def entrypoint():
             with open(program.name, mode="r") as program_pyqasp:
                 solver = PyQASPSolver(program.name)
                 solver.ground()
-                model,exit_code = solver.solve([])
-                print(model)
+                objective_atoms_map = adornment_rewriter.get_objective_map()
+                for i, o in objective_atoms_map.items():
+                    print(i, "<->", o)
+
+                for mus_id, mus in enumerate(enumerate_muses(solver, objective_atoms_map), start=1):
+                    print(f"[MUS #{mus_id}]")
+                    print(adornment_rewriter.print_subprogram(mus))
+
                 solver.close()
                 print("Remus finished")
             

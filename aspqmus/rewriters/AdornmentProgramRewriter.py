@@ -4,7 +4,7 @@ import clingo
 from clingo.ast import parse_string
 
 from aspqmus.language import QuantifiedProgram, ProgramQuantifier
-
+from bidict import frozenbidict
 
 class AdornmentType(StrEnum):
     MUS = "mus"
@@ -38,6 +38,8 @@ class AdornmentProgramRewriter(clingo.ast.Transformer):
     compute_dual : bool
     unsat_predicate_name : str
     non_adorned_rules : list
+    obj_id : int
+    objective_atoms_map : dict
 
     def __init__(self, encoding_program, objective_o_predicate_name, objective_u_predicate_name, unsat_predicate_name, adornment_type, adornment_option) -> None:
         super().__init__()
@@ -61,6 +63,9 @@ class AdornmentProgramRewriter(clingo.ast.Transformer):
         self.compute_dual = adornment_type == AdornmentType.MUS
         self.unsat_predicate_name = unsat_predicate_name
         self.non_adorned_rules = []
+        self.obj_id = 0
+        self.objective_atoms_map = dict()
+
         parse_string(encoding_program, lambda stm: (self(stm)))
         self.closed_program()
 
@@ -95,6 +100,19 @@ class AdornmentProgramRewriter(clingo.ast.Transformer):
         #construct global weak program
         weight = "1"       
         self.global_weak = QuantifiedProgram(f":~ {self.objective_u_predicate_name}(X,Y). [{weight}@1,X,Y]", ProgramQuantifier.GLOBAL_WEAK)
+
+    def get_objective_map(self):
+        return frozenbidict(self.objective_atoms_map)
+
+    def print_subprogram(self, obj_atoms):
+        prg = []
+        for obj_atom in obj_atoms:
+            prg.append(self.objective_atoms_to_rules[obj_atom])
+
+        for rule in self.non_adorned_rules:
+            prg.append(rule[1:-1])
+        
+        return "\n".join(prg)
 
     def visit_Comment(self, value):
         value_str = str(value)
@@ -223,6 +241,9 @@ class AdornmentProgramRewriter(clingo.ast.Transformer):
         self.objective_atoms_o.append(str(obj_atom_o))
         self.objective_atoms_to_rules[str(obj_atom_u)] = self.asp_rule_to_string(node.head, node.body)
         self.objective_atoms_u.append(str(obj_atom_u))
+
+        self.obj_id += 1
+        self.objective_atoms_map[self.obj_id] = str(obj_atom_u) 
         return obj_atom_o
     
     def asp_rule_to_string(self, rule_head, rule_body):
