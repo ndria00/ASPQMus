@@ -1,0 +1,3 @@
+[submodule "pyqasp"]
+	path = pyqasp
+	url = https://github.com/MazzottaG/PyQASP
