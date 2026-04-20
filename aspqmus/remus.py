@@ -17,6 +17,8 @@ def shrink_qasp_core(solver, assumptions):
 
 	return wset
 
+
+
 def enumerate_muses(solver, objective_atoms_ids_to_atoms, verbose=False):
 	# solver: pyqasp solver
 	# objective_atoms: list[str] ~ atoms
