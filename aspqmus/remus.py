@@ -75,5 +75,5 @@ def remus(solver, objective_atoms_ids_to_atoms, mode):
 		mhs.add(known_mcs)
 
 	for mcs in mhs.mhs():
-		raise NotImplementedError
-	
+		if mode == 'MCS':
+			yield tuple(objective_atoms_ids_to_atoms[i] for i in mcs)	
