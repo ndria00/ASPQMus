@@ -65,7 +65,7 @@ def entrypoint():
                     print(i, "<->", o)
 
                 if ad_type == AdornmentType.MUS:
-                    for mus_id, mus in enumerate(enumerate_mcses(solver, objective_atoms_map), start=1):
+                    for mus_id, mus in enumerate(enumerate_muses(solver, objective_atoms_map), start=1):
                         print(f"[MUS #{mus_id}]")
                         print(adornment_rewriter.print_subprogram(mus))
                         exit(0)
