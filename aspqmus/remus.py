@@ -67,9 +67,9 @@ def remus(solver, objective_atoms_ids_to_atoms, mode):
 				yield tuple(mcs)
 
 
-	### sono arrivato qui, non ho più subset da campionare in lattice
-	### potrei avere mcs inesplorati
-	### faccio MHS su found_muses, bloccando MCSes
+	if mode != 'MCS':
+        return
+	
 	mhs = HittingSet(list(objective_atoms_ids_to_atoms))
 	for known_mcs in found_mcses:
 		mhs.add(known_mcs)
