@@ -5,6 +5,7 @@ description = "A tool for computing ASP(Q) MUS and MCS based on PyQASP"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "asp-muses",
     "clingo>=5.7.1",
 ]
 
@@ -13,4 +14,7 @@ aspqmus = "aspqmus.app:entrypoint"
 
 [tool.setuptools.packages.find]
 where = ["."]
+
+[tool.uv.sources]
+asp-muses = { git = "https://github.com/ainnoot/asp-muses" }
 
