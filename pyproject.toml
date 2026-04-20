@@ -7,7 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "asp-muses",
     "bidict>=0.23.1",
-    "clingo>=5.7.1",
+    "clingo>=5.8.0",
     "pyqasp",
 ]
 

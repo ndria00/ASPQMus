@@ -7,7 +7,8 @@ import os
 from pyqasp.pyqaspsolver import PyQASPSolver
 from aspqmus.rewriters.AdornmentProgramRewriter import AdornmentProgramRewriter, AdornmentType, AdornmentOption
 from aspqmus.utils import Settings, Logger
-from aspqmus.remus import enumerate_muses
+from aspqmus.remus import enumerate_muses, enumerate_mcses
+import sys
 
 def entrypoint():
     parser = argparse.ArgumentParser(prog = "aspqmus", description = "TODO\n")
@@ -35,12 +36,13 @@ def entrypoint():
     logger = Logger(args.debug)
     ad_option = AdornmentOption(args.adornment)
     ad_type = AdornmentType("mus") if args.mus else AdornmentType("mcs")
-    adornment_rewriter = AdornmentProgramRewriter(encoding_program, Settings.OBJECTIVE_ATOM_O_NAME, Settings.OBJECTIVE_ATOM_U_NAME,Settings.UNSAT_ATOM_NAME, ad_type, ad_option)
+    create_enforce = True if args.remus else False
+    adornment_rewriter = AdornmentProgramRewriter(encoding_program, Settings.OBJECTIVE_ATOM_O_NAME, Settings.OBJECTIVE_ATOM_U_NAME,Settings.UNSAT_ATOM_NAME, ad_type, ad_option, create_enforce)
 
     for program in adornment_rewriter.programs:
         logger.print(program)
-    logger.print(adornment_rewriter.global_weak)
-
+    if not args.remus:
+        logger.print(adornment_rewriter.global_weak)
     if args.pyqasp: 
         pyqasp_executable = args.pyqasp
     else:
@@ -62,9 +64,16 @@ def entrypoint():
                 for i, o in objective_atoms_map.items():
                     print(i, "<->", o)
 
-                for mus_id, mus in enumerate(enumerate_muses(solver, objective_atoms_map), start=1):
-                    print(f"[MUS #{mus_id}]")
-                    print(adornment_rewriter.print_subprogram(mus))
+                if ad_type == AdornmentType.MUS:
+                    for mus_id, mus in enumerate(enumerate_mcses(solver, objective_atoms_map), start=1):
+                        print(f"[MUS #{mus_id}]")
+                        print(adornment_rewriter.print_subprogram(mus))
+                        exit(0)
+                else:
+                    for mcs_id, mcs in enumerate(enumerate_mcses(solver, objective_atoms_map), start=1):
+                        print(f"[MCS #{mcs_id}]")
+                        print(adornment_rewriter.print_subprogram(mcs))
+                        exit(0)
 
                 solver.close()
                 print("Remus finished")

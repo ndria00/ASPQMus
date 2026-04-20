@@ -40,8 +40,9 @@ class AdornmentProgramRewriter(clingo.ast.Transformer):
     non_adorned_rules : list
     obj_id : int
     objective_atoms_map : dict
+    create_enforce : bool
 
-    def __init__(self, encoding_program, objective_o_predicate_name, objective_u_predicate_name, unsat_predicate_name, adornment_type, adornment_option) -> None:
+    def __init__(self, encoding_program, objective_o_predicate_name, objective_u_predicate_name, unsat_predicate_name, adornment_type, adornment_option, create_enforce) -> None:
         super().__init__()
         self.programs = []
         self.global_weak = None
@@ -60,7 +61,8 @@ class AdornmentProgramRewriter(clingo.ast.Transformer):
         self.current_program_rule_id = 0
         self.objective_atoms_o = []
         self.objective_atoms_u = []
-        self.compute_dual = adornment_type == AdornmentType.MUS
+        self.create_enforce = create_enforce
+        self.compute_dual = adornment_type == AdornmentType.MUS and not self.create_enforce
         self.unsat_predicate_name = unsat_predicate_name
         self.non_adorned_rules = []
         self.obj_id = 0
@@ -70,9 +72,13 @@ class AdornmentProgramRewriter(clingo.ast.Transformer):
         self.closed_program()
 
         #add exists program over objective atoms of the form u
-        obj_atom_choice = "{" + ";".join(self.objective_atoms_u) +"}.\n"
+        if not self.create_enforce:
+            obj_atom_choice = "{" + ";".join(self.objective_atoms_u) +"}.\n"
+        else:
+            obj_atom_choice = "{" + ";".join(self.objective_atoms_o) +"}.\n"
+
         #add rules of the form o \leftarrow not u
-        if self.adornment_type == AdornmentType.MCS:
+        if self.adornment_type == AdornmentType.MCS and not self.create_enforce:
             for obj_atom_u in self.objective_atoms_u:
                 rule = f"{obj_atom_u.replace(objective_u_predicate_name, objective_o_predicate_name)}:-not {obj_atom_u}."
                 obj_atom_choice += f"{rule}\n"
@@ -83,7 +89,7 @@ class AdornmentProgramRewriter(clingo.ast.Transformer):
         #if adorning for MCS create empty constraint program, otherwise add incoherent constraint program
         if self.programs[len(self.programs)-1].program_type != ProgramQuantifier.CONSTRAINTS:
             constraint_program = None
-            if self.adornment_type == AdornmentType.MCS:
+            if not self.compute_dual:
                 constraint_program = QuantifiedProgram("", ProgramQuantifier.CONSTRAINTS)
             else:
                 unsat_constraint = f":- not {self.unsat_predicate_name}."
@@ -92,11 +98,11 @@ class AdornmentProgramRewriter(clingo.ast.Transformer):
             
         #add forall program after choice which enforces atoms from choice program and leaves the remaining free
         if self.adornment_type == AdornmentType.MUS:
-            obj_atom_choice = "{" + ";".join(self.objective_atoms_o) +"}.\n"
-            obj_atom_o_if_u = f"{self.objective_o_predicate_name}(X,Y):-{self.objective_u_predicate_name}(X,Y)."
-            force_u_program = QuantifiedProgram(f"{obj_atom_choice}{obj_atom_o_if_u}", ProgramQuantifier.FORALL)
-            self.programs = [self.programs[0]] + [force_u_program] + self.programs[1:]
-
+            if not self.create_enforce:
+                obj_atom_choice = "{" + ";".join(self.objective_atoms_o) +"}.\n"
+                obj_atom_o_if_u = f"{self.objective_o_predicate_name}(X,Y):-{self.objective_u_predicate_name}(X,Y)."
+                force_u_program = QuantifiedProgram(f"{obj_atom_choice}{obj_atom_o_if_u}", ProgramQuantifier.FORALL)
+                self.programs = [self.programs[0]] + [force_u_program] + self.programs[1:]
         #construct global weak program
         weight = "1"       
         self.global_weak = QuantifiedProgram(f":~ {self.objective_u_predicate_name}(X,Y). [{weight}@1,X,Y]", ProgramQuantifier.GLOBAL_WEAK)
@@ -239,11 +245,14 @@ class AdornmentProgramRewriter(clingo.ast.Transformer):
         )
 
         self.objective_atoms_o.append(str(obj_atom_o))
-        self.objective_atoms_to_rules[str(obj_atom_u)] = self.asp_rule_to_string(node.head, node.body)
+        if not self.adornment_option:
+            self.objective_atoms_to_rules[str(obj_atom_u)] = self.asp_rule_to_string(node.head, node.body)
+        else:
+            self.objective_atoms_to_rules[str(obj_atom_o)] = self.asp_rule_to_string(node.head, node.body)
         self.objective_atoms_u.append(str(obj_atom_u))
 
         self.obj_id += 1
-        self.objective_atoms_map[self.obj_id] = str(obj_atom_u) 
+        self.objective_atoms_map[self.obj_id] = str(obj_atom_o) 
         return obj_atom_o
     
     def asp_rule_to_string(self, rule_head, rule_body):
