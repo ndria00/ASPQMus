@@ -60,7 +60,7 @@ def remus(solver, objective_atoms_ids_to_atoms, mode):
 			mcs_lits = set(objective_atoms_ids_to_atoms).difference(mss)
 
 			# sbagliato devo sistemare
-			mcs = [objective_atoms_ids_to_atoms.inv[i] for i, _ in mcs_lits]
+			mcs = [objective_atoms_ids_to_atoms[i] for i in mcs_lits]
 
 			found_mcses.append(mcs_lits)
 			if mode == 'MCS':
