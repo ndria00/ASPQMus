@@ -2,6 +2,7 @@ from pyqasp.pyqaspsolver import PyQASPSolver
 from asp_muses.lattice import AssumptionsLattice
 from asp_muses.hitting_set import HittingSet
 from bidict import frozenbidict
+import clingo
 
 PYQASP_ASSUMPTION_TRUE_TRUTH_VALUE = False
 
@@ -20,60 +21,75 @@ def shrink_qasp_core(solver, assumptions):
 
 	return wset
 
+def parse_objective_atoms_from_pyqasp_model(pyqasp_model):
+	return [clingo.parse_term(x) for x in pyqasp_model['literals'] if x.startswith('o(')]
+
 
 def enumerate_muses(solver, objective_atoms_ids_to_atoms):
-	return remus(solver, objective_atoms_ids_to_atoms, 'MUS')
+	return remus_mus(solver, objective_atoms_ids_to_atoms)
 
 def enumerate_mcses(solver, objective_atoms_ids_to_atoms):
-	return remus(solver, objective_atoms_ids_to_atoms, 'MCS')
+	return remus_mcs(solver, objective_atoms_ids_to_atoms)
 
-def remus(solver, objective_atoms_ids_to_atoms, mode):
-	if mode not in ('MCS', 'MUS'):
-		raise RuntimeError(f"Unknown REMUS mode: {mode}")
-	# solver: pyqasp solver
-	# objective_atoms: list[str] ~ atoms
+def remus_mus(solver, objective_atoms_ids_to_atoms):
+	objective_atoms = [clingo.parse_term(x) for x in objective_atoms_ids_to_atoms.values()]
+	lattice = AssumptionsLattice(objective_atoms)
 
-	lattice = AssumptionsLattice(list(objective_atoms_ids_to_atoms))
+	found_muses = []
+	found_mcses = []
+
+	while True:
+		msm = lattice.minimal_subset()
+		if msm is None:
+			break
+
+		assumptions = [
+			(str(i), PYQASP_ASSUMPTION_TRUE_TRUTH_VALUE)
+			for i in msm
+		]
+
+		model, exit_code = solver.solve(assumptions)
+		if exit_code != 10: # UNSAT
+			# qasp_core = shrink_qasp_core(solver, assumptions)
+			# core = [clingo.parse_term(s) for s, _ in qasp_core]
+			lattice.block_up(msm)
+
+			found_muses.append(msm)
+
+			yield tuple(str(z) for z in msm)
+
+		else: # SAT
+			qasp_model = parse_objective_atoms_from_pyqasp_model(model)
+
+			lattice.block_down(qasp_model)
+			mcs = set(objective_atoms).difference(qasp_model)
+
+			found_mcses.append(mcs)
+
+def remus_mcs(solver, objective_atoms_ids_to_atoms):
+	objective_atoms = [clingo.parse_term(x) for x in objective_atoms_ids_to_atoms.values()]
+	lattice = AssumptionsLattice(objective_atoms)
 
 	found_muses = []
 	found_mcses = []
 
 	while mss := lattice.maximal_subset():
 		assumptions = [
-			(objective_atoms_ids_to_atoms[i], PYQASP_ASSUMPTION_TRUE_TRUTH_VALUE)
+			(str(i), PYQASP_ASSUMPTION_TRUE_TRUTH_VALUE)
 			for i in mss
 		]
 
 		model, exit_code = solver.solve(assumptions)
 		if exit_code != 10: # UNSAT
 			qasp_core = shrink_qasp_core(solver, assumptions)
-			core_lits = [objective_atoms_ids_to_atoms.inv[i] for i, _ in qasp_core]
-			lattice.block_up(core_lits)
+			core = [clingo.parse_term(s) for s, _ in qasp_core]
+			lattice.block_up(core)
 
-			found_muses.append(core_lits)
-
-			if mode == 'MUS':
-				yield tuple(i for i, j in qasp_core)
+			found_muses.append(core)
 
 		else: # SAT
 			lattice.block_down(mss)
-			mcs_lits = set(objective_atoms_ids_to_atoms).difference(mss)
+			mcs = set(objective_atoms).difference(mss)
 
-			# sbagliato devo sistemare
-			mcs = [objective_atoms_ids_to_atoms[i] for i in mcs_lits]
-
-			found_mcses.append(mcs_lits)
-			if mode == 'MCS':
-				yield tuple(mcs)
-
-
-	if mode != 'MCS':
-		return
-	
-	mhs = HittingSet(list(objective_atoms_ids_to_atoms))
-	for known_mcs in found_mcses:
-		mhs.add(known_mcs)
-
-	for mcs in mhs.mhs():
-		if mode == 'MCS':
-			yield tuple(objective_atoms_ids_to_atoms[i] for i in mcs)	
+			found_mcses.append(mcs)
+			yield tuple(str(z) for z in mcs)
