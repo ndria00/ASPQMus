@@ -1,6 +1,5 @@
 from pyqasp.pyqaspsolver import PyQASPSolver
-from asp_muses.lattice import AssumptionsLattice
-from asp_muses.hitting_set import HittingSet
+from assumption_lattice import AssumptionsLattice
 from bidict import frozenbidict
 import clingo
 
