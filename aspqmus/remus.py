@@ -68,7 +68,7 @@ def remus(solver, objective_atoms_ids_to_atoms, mode):
 
 
 	if mode != 'MCS':
-        return
+		return
 	
 	mhs = HittingSet(list(objective_atoms_ids_to_atoms))
 	for known_mcs in found_mcses:
