@@ -34,9 +34,6 @@ def remus_mus(solver, objective_atoms_ids_to_atoms):
 	objective_atoms = [clingo.parse_term(x) for x in objective_atoms_ids_to_atoms.values()]
 	lattice = AssumptionsLattice(objective_atoms)
 
-	found_muses = []
-	found_mcses = []
-
 	while True:
 		msm = lattice.minimal_subset()
 		if msm is None:
@@ -53,24 +50,15 @@ def remus_mus(solver, objective_atoms_ids_to_atoms):
 			# core = [clingo.parse_term(s) for s, _ in qasp_core]
 			lattice.block_up(msm)
 
-			found_muses.append(msm)
-
 			yield tuple(str(z) for z in msm)
 
 		else: # SAT
 			qasp_model = parse_objective_atoms_from_pyqasp_model(model)
-
 			lattice.block_down(qasp_model)
-			mcs = set(objective_atoms).difference(qasp_model)
-
-			found_mcses.append(mcs)
 
 def remus_mcs(solver, objective_atoms_ids_to_atoms):
 	objective_atoms = [clingo.parse_term(x) for x in objective_atoms_ids_to_atoms.values()]
 	lattice = AssumptionsLattice(objective_atoms)
-
-	found_muses = []
-	found_mcses = []
 
 	while mss := lattice.maximal_subset():
 		assumptions = [
@@ -84,11 +72,8 @@ def remus_mcs(solver, objective_atoms_ids_to_atoms):
 			core = [clingo.parse_term(s) for s, _ in qasp_core]
 			lattice.block_up(core)
 
-			found_muses.append(core)
-
 		else: # SAT
 			lattice.block_down(mss)
 			mcs = set(objective_atoms).difference(mss)
 
-			found_mcses.append(mcs)
 			yield tuple(str(z) for z in mcs)

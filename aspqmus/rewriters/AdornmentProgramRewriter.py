@@ -73,9 +73,9 @@ class AdornmentProgramRewriter(clingo.ast.Transformer):
 
         #add exists program over objective atoms of the form u
         if not self.create_enforce:
-            obj_atom_choice = "{" + ";".join(self.objective_atoms_u) +"}.\n"
+            obj_atom_choice = "{" + ";".join(self.objective_atoms_u) +"}.\n" if len(self.objective_atoms_u) > 0 else "" 
         else:
-            obj_atom_choice = "{" + ";".join(self.objective_atoms_o) +"}.\n"
+            obj_atom_choice = "{" + ";".join(self.objective_atoms_o) +"}.\n" if len(self.objective_atoms_u) > 0 else ""
 
         #add rules of the form o \leftarrow not u
         if self.adornment_type == AdornmentType.MCS and not self.create_enforce:

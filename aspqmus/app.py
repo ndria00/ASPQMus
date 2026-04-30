@@ -61,8 +61,8 @@ def entrypoint():
                 solver = PyQASPSolver(program.name)
                 solver.ground()
                 objective_atoms_map = adornment_rewriter.get_objective_map()
-                for i, o in objective_atoms_map.items():
-                    print(i, "<->", o)
+                # for i, o in objective_atoms_map.items():
+                #     print(i, "<->", o)
 
                 if ad_type == AdornmentType.MUS:
                     for mus_id, mus in enumerate(enumerate_muses(solver, objective_atoms_map), start=1):
