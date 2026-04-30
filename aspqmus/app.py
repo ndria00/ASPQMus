@@ -46,7 +46,7 @@ def entrypoint():
     if args.pyqasp: 
         pyqasp_executable = args.pyqasp
     else:
-        pyqasp_executable = "pyqasp"
+        pyqasp_executable = "pyqasp_opt"
     
     if args.remus:
         logger.print("Doing remus")
